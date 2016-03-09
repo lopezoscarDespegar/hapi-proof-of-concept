@@ -1,0 +1,17 @@
+{
+  method: 'GET',
+  path: '/todo/{id}/',
+  config: {
+    handler: handlers.getToDo,
+    description: 'Get todo',
+    notes: 'Returns a todo item by the id passed in the path',
+    tags: ['api'],
+    validate: {
+      params: {
+        username: Joi.number()
+        .required()
+        .description('the id for the todo item'),
+      }
+    }
+  },
+}
