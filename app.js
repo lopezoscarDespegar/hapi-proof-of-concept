@@ -1,15 +1,24 @@
 "use strict";
 
 const Hapi = require("hapi");
-const Good = require('good');
 
+//Hapi Plugins
+const Good = require('good');
 const Inert = require('inert');
 const Vision = require('vision');
 const HapiSwagger = require('hapi-swagger');
 const Joi = require('joi');
 
 
+//Database Driver
+const mongojs = require("mongojs");
+
+global.db = mongojs("mongodb://localhost:27017/specialdom",["config"]);
+
+
 const server = new Hapi.Server();
+
+var hotels = require("./controllers/hotelCtrl.js");
 
 server.connection({
     host: 'localhost',
@@ -22,7 +31,11 @@ server.route({
     path:'/api/v1/hotels',
     config:{
         handler: function (request, reply) {
-            return reply([{id:331131}]);
+            hotels.getHotels((err,hotels) => {
+                if(err)
+                    return reply(err);
+                return reply(hotels);
+            });
         },
         plugins: {
             'hapi-swagger': {
@@ -32,35 +45,78 @@ server.route({
         },
         tags: ['api']
     }
-
 });
 
 const responseModel = Joi.object({
     id: Joi.number()
 }).label('Result');
 
+var plugins = {
+    'hapi-swagger': {
+        responses: {'400': {'description': 'Bad Request'},'200':{'description':'ok'}},
+        payloadType: 'json'
+    }
+};
+
 //Tiene que coincidir el path param con el params del objeto validate.
 server.route({
     method: 'GET',
     path: '/api/v1/hotels/{hotelId}',
-    handler: function (request, reply) {
-        console.log(request.params);
-        reply({id:331131});
-    },
     config:{
-        plugins: {
-            'hapi-swagger': {
-                responses: {'400': {'description': 'Bad Request'},'200':{'description':'ok'}},
-                payloadType: 'json'
-            }
-        },
+        plugins: plugins,
         tags: ['api'],
         validate: {
             params: {
-                hotelId: Joi.number().required().description('Hotel ID form PAM')
+                hotelId: Joi.number().required().description('Hotel ID from PAM')
+            },
+            query:{
+                reduce: Joi.boolean().description("Reduce version of Hotel")
             }
-        },
-        response: {schema: responseModel}
+        }
+        //response: {schema: responseModel}
+    },
+    handler: function (request, reply) {
+        hotels.getHotelById(request.params,(err,hotel) => {
+           if(err)
+               return reply(err);
+            return reply(hotel);
+        });
+    }
+});
+
+server.route({
+    method:"GET",
+    path:"/api/v1/sales/{from}/{to}",
+    config:{
+        plugins: plugins,
+        tags: ['api'],
+        validate:{
+            params:{
+                from: Joi.string().length(8).required().description("Fecha Desde YYYYMMDD (20160101)"),
+                to: Joi.string().length(8).required().description("Fecha Hasta YYYYMMDD (20160229) ")
+            }
+        }
+    },
+    handler: function(req,res){
+        res({sales:1});
+    }
+});
+server.route({
+    method:"GET",
+    path:"/api/v1/sales/{hotelId}/{from}/{to}",
+    config:{
+        plugins: plugins,
+        tags: ['api'],
+        validate:{
+            params:{
+                hotelId:Joi.number().required().description("Hotel ID"),
+                from: Joi.string().length(8).required().description("Fecha Desde YYYYMMDD (20160101)"),
+                to: Joi.string().length(8).required().description("Fecha Hasta YYYYMMDD (20160229) ")
+            }
+        }
+    },
+    handler: function(req,res){
+        res({sales:1});
     }
 });
 
